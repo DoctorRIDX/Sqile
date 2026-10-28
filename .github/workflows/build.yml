@@ -32,14 +32,33 @@ jobs:
 
       - name: Configure Android SDK
         run: |
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
-          elif [ -f android/app/build.gradle ]; then
-            sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 36/' android/app/build.gradle
-          else
-            echo "Gradle app file not found"
-            exit 1
-          fi
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import re
+
+          candidates = [
+              Path("android/app/build.gradle.kts"),
+              Path("android/app/build.gradle"),
+          ]
+          gradle = next((p for p in candidates if p.exists()), None)
+
+          if gradle is None:
+              raise SystemExit("Gradle app file not found")
+
+          text = gradle.read_text()
+          pattern = r'compileSdk\s*(?:=\s*)?(?:flutter\.compileSdkVersion|[0-9]+)'
+          updated, count = re.subn(pattern, 'compileSdk = 36' if gradle.suffix == '.kts' else 'compileSdk 36', text, count=1)
+
+          if count == 0:
+              raise SystemExit("compileSdk setting not found in " + str(gradle))
+
+          gradle.write_text(updated)
+          print("Updated compileSdk to 36 in", gradle)
+          PYCODE
+
+      - name: Install Android SDK 36
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" || true
 
       - name: Install dependencies
         run: flutter pub get
