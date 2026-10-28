@@ -30,35 +30,28 @@ jobs:
             flutter create --platforms=android --org com.sqile .
           fi
 
-      - name: Configure Android SDK
+      - name: Set and verify compileSdk
         run: |
-          python3 - <<'PYCODE'
-          from pathlib import Path
-          import re
+          if [ -f android/app/build.gradle.kts ]; then
+            FILE=android/app/build.gradle.kts
+            sed -i -E 's/compileSdk[[:space:]]*=[[:space:]]*(flutter\.compileSdkVersion|[0-9]+)/compileSdk = 36/' "$FILE"
+          elif [ -f android/app/build.gradle ]; then
+            FILE=android/app/build.gradle
+            sed -i -E 's/compileSdk[[:space:]]+(flutter\.compileSdkVersion|[0-9]+)/compileSdk 36/' "$FILE"
+          else
+            echo "ERROR: Gradle app file not found"
+            exit 1
+          fi
 
-          candidates = [
-              Path("android/app/build.gradle.kts"),
-              Path("android/app/build.gradle"),
-          ]
-          gradle = next((p for p in candidates if p.exists()), None)
+          grep -n 'compileSdk' "$FILE"
+          grep -Eq 'compileSdk[[:space:]]*(=[[:space:]]*36|36)([^0-9]|$)' "$FILE" || {
+            echo "ERROR: compileSdk 36 was not configured"
+            exit 1
+          }
 
-          if gradle is None:
-              raise SystemExit("Gradle app file not found")
-
-          text = gradle.read_text()
-          pattern = r'compileSdk\s*(?:=\s*)?(?:flutter\.compileSdkVersion|[0-9]+)'
-          updated, count = re.subn(pattern, 'compileSdk = 36' if gradle.suffix == '.kts' else 'compileSdk 36', text, count=1)
-
-          if count == 0:
-              raise SystemExit("compileSdk setting not found in " + str(gradle))
-
-          gradle.write_text(updated)
-          print("Updated compileSdk to 36 in", gradle)
-          PYCODE
-
-      - name: Install Android SDK 36
+      - name: Install Android API 36
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36"
 
       - name: Install dependencies
         run: flutter pub get
