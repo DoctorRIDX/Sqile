@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,7 +53,7 @@ class _ProtaxHomeState extends State<ProtaxHome> {
   final urlInput = TextEditingController();
   final dataInput = TextEditingController();
   late final WebViewController web;
-  bool loading = false, loaded = false;
+  bool loading = false, loaded = false, stopRequested = false;
   int progress = 0;
   String currentUrl = '';
   String status = 'READY';
@@ -62,9 +64,9 @@ class _ProtaxHomeState extends State<ProtaxHome> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(bg)
       ..setNavigationDelegate(NavigationDelegate(
-        onProgress: (p) { if (mounted) setState(() { progress = p; loading = p < 100; }); },
-        onPageStarted: (url) { if (mounted) setState(() { loading = true; loaded = false; status = 'LOADING'; currentUrl = url; urlInput.text = url; }); },
-        onPageFinished: (url) { if (mounted) setState(() { loading = false; loaded = true; progress = 100; status = 'LOADED'; currentUrl = url; urlInput.text = url; }); },
+        onProgress: (p) { if (stopRequested || !mounted) return; setState(() { progress = p; loading = p < 100; }); },
+        onPageStarted: (url) { stopRequested = false; if (mounted) setState(() { loading = true; loaded = false; status = 'LOADING'; currentUrl = url == 'about:blank' ? '' : url; if (url != 'about:blank') urlInput.text = url; }); },
+        onPageFinished: (url) { if (stopRequested || !mounted) return; setState(() { loading = false; loaded = url != 'about:blank'; progress = loaded ? 100 : 0; status = loaded ? 'LOADED' : 'READY'; currentUrl = url == 'about:blank' ? '' : url; if (url != 'about:blank') urlInput.text = url; }); },
         onWebResourceError: (error) { if (error.isForMainFrame == true && mounted) setState(() { loading = false; status = 'ERROR'; }); },
         onUrlChange: (change) { if (change.url != null && mounted) setState(() { currentUrl = change.url!; }); },
       ));
@@ -84,12 +86,172 @@ class _ProtaxHomeState extends State<ProtaxHome> {
     dataInput.clear();
     await showModalBottomSheet<void>(context: context, isScrollControlled: true, backgroundColor: panel, builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => Padding(padding: EdgeInsets.fromLTRB(18, 20, 18, MediaQuery.of(ctx).viewInsets.bottom + 20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(encode ? 'URL Encode' : 'URL Decode', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)), const SizedBox(height: 14), TextField(controller: dataInput, minLines: 3, maxLines: 5, decoration: const InputDecoration(hintText: 'Enter text or encoded data')), const SizedBox(height: 12), Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () { try { dataInput.text = encode ? Uri.encodeComponent(dataInput.text) : Uri.decodeComponent(dataInput.text); refresh(() {}); } catch (_) { _message('Data tidak dapat diproses'); } }, icon: Icon(encode ? Icons.lock_outline : Icons.lock_open_outlined), label: Text(encode ? 'Encode' : 'Decode'))), const SizedBox(width: 10), IconButton(onPressed: () => Clipboard.setData(ClipboardData(text: dataInput.text)).then((_) => _message('Disalin')), icon: const Icon(Icons.copy))])]))));
   }
+
+  Future<void> stopPage() async {
+    stopRequested = true;
+    try { await web.runJavaScript('window.stop()'); } catch (_) {}
+    if (!mounted) return;
+    setState(() { loading = false; status = 'STOPPED'; });
+  }
+
+  Future<void> clearPage() async {
+    urlInput.clear();
+    stopRequested = true;
+    try { await web.runJavaScript('window.stop()'); } catch (_) {}
+    if (!mounted) return;
+    setState(() { loading = false; loaded = false; progress = 0; currentUrl = ''; status = 'READY'; });
+  }
+
+  Future<void> navigate(bool forward) async {
+    try {
+      if (forward ? await web.canGoForward() : await web.canGoBack()) {
+        if (forward) { await web.goForward(); } else { await web.goBack(); }
+      } else {
+        _message(forward ? 'Tidak ada halaman berikutnya' : 'Tidak ada halaman sebelumnya');
+      }
+    } catch (_) { _message('Navigasi tidak tersedia'); }
+  }
+
+  Future<void> copyUrl() async {
+    final value = currentUrl.isNotEmpty ? currentUrl : urlInput.text.trim();
+    if (value.isEmpty) { _message('URL masih kosong'); return; }
+    await Clipboard.setData(ClipboardData(text: value));
+    _message('URL disalin');
+  }
+
+  Future<void> textTool(String title, String hint, Future<void> Function(String) apply,
+      {String initial = '', int lines = 4}) async {
+    final input = TextEditingController(text: initial);
+    await showModalBottomSheet<void>(
+      context: context, isScrollControlled: true, backgroundColor: panel,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(18, 20, 18, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          TextField(controller: input, minLines: lines, maxLines: lines + 3,
+            decoration: InputDecoration(hintText: hint)),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: FilledButton(
+            onPressed: () async { final value = input.text; Navigator.pop(ctx); await apply(value); },
+            child: const Text('Apply')))
+        ]),
+      ),
+    );
+    input.dispose();
+  }
+
+  Future<void> editHeaders() async {
+    await textTool('Request Headers', 'Contoh:\\nAccept: application/json\\nX-Test: value',
+      (value) async {
+        try {
+          final headers = <String, String>{};
+          for (final row in value.split('\\n')) {
+            final i = row.indexOf(':');
+            if (i > 0) {
+              final key = row.substring(0, i).trim();
+              final val = row.substring(i + 1).trim();
+              if (key.isNotEmpty) headers[key] = val;
+            }
+          }
+          final url = normalizeUrl(urlInput.text);
+          setState(() { loading = true; loaded = false; progress = 0; status = 'LOADING'; });
+          await web.loadRequest(Uri.parse(url), headers: headers);
+        } catch (e) { _message('Header/URL tidak valid: $e'); }
+      });
+  }
+
+  Future<void> sendBody() async {
+    await textTool('POST Body', 'Contoh: username=test&password=123',
+      (value) async {
+        try {
+          final url = normalizeUrl(urlInput.text);
+          setState(() { loading = true; loaded = false; progress = 0; status = 'LOADING'; });
+          await web.loadRequest(
+            Uri.parse(url),
+            method: LoadRequestMethod.post,
+            headers: const {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: Uint8List.fromList(utf8.encode(value)),
+          );
+        } catch (e) { _message('Gagal mengirim body: $e'); }
+      });
+  }
+
+  Future<void> showCookies() async {
+    try {
+      final result = await web.runJavaScriptReturningResult('document.cookie');
+      if (!mounted) return;
+      showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Cookies halaman'),
+        content: SingleChildScrollView(child: SelectableText('$result')),
+        actions: [
+          TextButton(onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: '$result'));
+            if (ctx.mounted) Navigator.pop(ctx);
+            _message('Hasil disalin');
+          }, child: const Text('Copy')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
+        ],
+      ));
+    } catch (_) { _message('Buka halaman terlebih dahulu'); }
+  }
+
+  Future<void> editUserAgent() async {
+    await textTool('User-Agent', 'Masukkan User-Agent baru',
+      (value) async {
+        if (value.trim().isEmpty) { _message('User-Agent kosong'); return; }
+        try {
+          await web.setUserAgent(value.trim());
+          _message('User-Agent diterapkan untuk navigasi berikutnya');
+        } catch (e) { _message('Gagal mengatur User-Agent: $e'); }
+      });
+  }
+
+  Future<void> findText() async {
+    await textTool('Find in page', 'Teks yang dicari',
+      (value) async {
+        if (value.isEmpty) return;
+        try {
+          final safe = jsonEncode(value);
+          await web.runJavaScript('window.find($safe)');
+        } catch (_) { _message('Pencarian tidak didukung halaman ini'); }
+      }, lines: 1);
+  }
+
   Widget action(String label, IconData icon, VoidCallback onTap, {bool primary = false}) => SizedBox(height: 42, child: primary ? FilledButton.icon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label), style: FilledButton.styleFrom(backgroundColor: purple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))) : OutlinedButton.icon(onPressed: onTap, icon: Icon(icon, size: 17), label: Text(label), style: OutlinedButton.styleFrom(foregroundColor: purpleLight, side: const BorderSide(color: line), padding: const EdgeInsets.symmetric(horizontal: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))));
   @override Widget build(BuildContext context) => Scaffold(
     body: SafeArea(child: Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(16, 13, 16, 10), child: Row(children: [ClipOval(child: Image.asset('assets/logo.png', width: 43, height: 43, fit: BoxFit.cover)), const SizedBox(width: 12), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Sqile Protax', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -.6)), SizedBox(height: 1), Text('By Farid - DoctorRIDX', style: TextStyle(color: muted, fontSize: 12))])), IconButton(tooltip: 'Privacy Policy', onPressed: () => showDialog(context: context, builder: (_) => const AlertDialog(title: Text('Privacy Policy'), content: Text('Situs dibuka di WebView. Data yang dikirim melalui situs diterima oleh situs tujuan. Encode/decode berjalan lokal. Sqile tidak mengunggah riwayat browsing ke server Sqile.'), actions: [CloseButton()])), icon: const Icon(Icons.privacy_tip_outlined, color: purpleLight))])),
       Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Row(children: [Expanded(child: TextField(controller: urlInput, keyboardType: TextInputType.url, textInputAction: TextInputAction.go, onSubmitted: (_) => runUrl(), decoration: const InputDecoration(hintText: 'https://example.com', prefixIcon: Icon(Icons.link, color: purpleLight), isDense: true))), const SizedBox(width: 8), SizedBox(height: 49, child: FilledButton(onPressed: runUrl, style: FilledButton.styleFrom(backgroundColor: purple, padding: const EdgeInsets.symmetric(horizontal: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Icon(Icons.play_arrow_rounded))) ])),
-      SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.fromLTRB(14, 9, 14, 10), child: Row(children: [action('Stop', Icons.stop_rounded, () async { await web.runJavaScript('window.stop()').catchError((_) {});  if (mounted) setState(() { loading = false; status = 'STOPPED'; }); }), const SizedBox(width: 7), action('Reload', Icons.refresh_rounded, () async { if (currentUrl.isNotEmpty) { setState(() { loading = true; status = 'LOADING'; }); await web.reload(); } }), const SizedBox(width: 7), action('Params', Icons.tune_rounded, openParams), const SizedBox(width: 7), action('Encode', Icons.lock_outline, () => openCodec(true)), const SizedBox(width: 7), action('Decode', Icons.lock_open_outlined, () => openCodec(false))])),
+      SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.fromLTRB(14, 9, 14, 10), child: Row(children: [
+        action('Back', Icons.arrow_back, () => navigate(false)),
+        const SizedBox(width: 7),
+        action('Forward', Icons.arrow_forward, () => navigate(true)),
+        const SizedBox(width: 7),
+        action('Stop', Icons.stop_rounded, stopPage),
+        const SizedBox(width: 7),
+        action('Reload', Icons.refresh_rounded, () async { if (currentUrl.isNotEmpty) { stopRequested = false; setState(() { loading = true; status = 'LOADING'; }); await web.reload(); } }),
+        const SizedBox(width: 7),
+        action('Clear', Icons.clear, clearPage),
+        const SizedBox(width: 7),
+        action('Copy URL', Icons.copy, copyUrl),
+        const SizedBox(width: 7),
+        action('Params', Icons.tune_rounded, openParams),
+        const SizedBox(width: 7),
+        action('Headers', Icons.subject, editHeaders),
+        const SizedBox(width: 7),
+        action('Body', Icons.data_object, sendBody),
+        const SizedBox(width: 7),
+        action('Cookies', Icons.cookie_outlined, showCookies),
+        const SizedBox(width: 7),
+        action('User-Agent', Icons.manage_accounts_outlined, editUserAgent),
+        const SizedBox(width: 7),
+        action('Encode', Icons.lock_outline, () => openCodec(true)),
+        const SizedBox(width: 7),
+        action('Decode', Icons.lock_open_outlined, () => openCodec(false)),
+        const SizedBox(width: 7),
+        action('Find', Icons.search, findText),
+      ])),
       Container(height: 1, color: line),
       Expanded(child: Stack(children: [WebViewWidget(controller: web), if (!loaded) Positioned.fill(child: IgnorePointer(child: Container(color: bg, child: Center(child: ClipOval(child: Image.asset('assets/logo.png', width: 76, height: 76, fit: BoxFit.cover)))))), if (loading) Positioned(top: 0, left: 0, right: 0, child: LinearProgressIndicator(value: progress == 0 || progress >= 100 ? null : progress / 100, minHeight: 2, backgroundColor: panel2, color: purpleLight))])),
       Container(color: panel, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), child: Row(children: [Container(width: 7, height: 7, decoration: BoxDecoration(color: status == 'ERROR' ? Colors.redAccent : status == 'LOADED' ? const Color(0xFF7BC8A4) : purpleLight, shape: BoxShape.circle)), const SizedBox(width: 8), Expanded(child: Text(status, style: const TextStyle(fontSize: 11, color: muted, fontWeight: FontWeight.w700, letterSpacing: .6), maxLines: 1, overflow: TextOverflow.ellipsis)), if (currentUrl.isNotEmpty) Flexible(child: Text(Uri.tryParse(currentUrl)?.host ?? '', style: const TextStyle(color: muted, fontSize: 11), overflow: TextOverflow.ellipsis))]))
