@@ -223,9 +223,9 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
       Container(
         width: 45, height: 45,
         decoration: BoxDecoration(
-          color: kPurple.withOpacity(.18),
+          color: kPurple.withValues(alpha: .18),
           borderRadius: BorderRadius.circular(kRadius),
-          border: Border.all(color: kPurple.withOpacity(.45)),
+          border: Border.all(color: kPurple.withValues(alpha: .45)),
         ),
         padding: const EdgeInsets.all(6),
         child: Image.asset('assets/logo.png', fit: BoxFit.contain),
@@ -241,9 +241,9 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
         builder: (_, child) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            color: kPurple.withOpacity(.10 + _pulse.value * .08),
+            color: kPurple.withValues(alpha: .10 + _pulse.value * .08),
             borderRadius: BorderRadius.circular(kRadius),
-            border: Border.all(color: kPurple.withOpacity(.3 + _pulse.value * .3)),
+            border: Border.all(color: kPurple.withValues(alpha: .3 + _pulse.value * .3)),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFFB58AFF), shape: BoxShape.circle)),
@@ -277,10 +277,10 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
       borderRadius: BorderRadius.circular(kRadius),
       gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
         colors: [Color(0xFF51208B), Color(0xFF25123F), Color(0xFF171220)]),
-      border: Border.all(color: kPurple.withOpacity(.35)),
+      border: Border.all(color: kPurple.withValues(alpha: .35)),
     ),
     child: Stack(children: [
-      Positioned(right: -12, top: -18, child: Icon(Icons.visibility_outlined, size: 112, color: Colors.white.withOpacity(.06))),
+      Positioned(right: -12, top: -18, child: Icon(Icons.visibility_outlined, size: 112, color: Colors.white.withValues(alpha: .06))),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('11:12', style: TextStyle(fontSize: 35, fontWeight: FontWeight.w800, letterSpacing: -1)),
         const SizedBox(height: 5),
@@ -300,7 +300,7 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
 
   Widget _tag(IconData icon, String label) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-    decoration: BoxDecoration(color: Colors.black.withOpacity(.16), borderRadius: BorderRadius.circular(kRadius)),
+    decoration: BoxDecoration(color: Colors.black.withValues(alpha: .16), borderRadius: BorderRadius.circular(kRadius)),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 12, color: kPurpleLight), const SizedBox(width: 5),
       Text(label, style: const TextStyle(fontSize: 8, letterSpacing: .6, fontWeight: FontWeight.w700)),
@@ -387,7 +387,7 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
         const Expanded(child: Text('Reports', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-          decoration: BoxDecoration(color: kPurple.withOpacity(.17), borderRadius: BorderRadius.circular(20)),
+          decoration: BoxDecoration(color: kPurple.withValues(alpha: .17), borderRadius: BorderRadius.circular(20)),
           child: Text('${_reports.length}', style: const TextStyle(color: kPurpleLight, fontSize: 11, fontWeight: FontWeight.w800)),
         ),
         IconButton(
@@ -473,10 +473,10 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(kRadius),
       gradient: const LinearGradient(colors: [Color(0xFF3B1A60), kPanel]),
-      border: Border.all(color: kPurple.withOpacity(.25)),
+      border: Border.all(color: kPurple.withValues(alpha: .25)),
     ),
     child: Row(children: [
-      Container(width: 46, height: 46, decoration: BoxDecoration(color: kPurple.withOpacity(.18), borderRadius: BorderRadius.circular(kRadius)),
+      Container(width: 46, height: 46, decoration: BoxDecoration(color: kPurple.withValues(alpha: .18), borderRadius: BorderRadius.circular(kRadius)),
         child: Icon(icon, color: kPurpleLight, size: 23)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -495,7 +495,7 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
   ]));
 
   Widget _bottomNav() => Container(
-    decoration: BoxDecoration(color: kPanel, border: Border(top: BorderSide(color: Colors.white.withOpacity(.06)))),
+    decoration: BoxDecoration(color: kPanel, border: Border(top: BorderSide(color: Colors.white.withValues(alpha: .06)))),
     child: SafeArea(top: false, child: Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 5),
       child: Row(children: [
@@ -518,9 +518,9 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
         margin: const EdgeInsets.symmetric(horizontal: 3),
         padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? kPurple.withOpacity(.18) : Colors.transparent,
+          color: selected ? kPurple.withValues(alpha: .18) : Colors.transparent,
           borderRadius: BorderRadius.circular(kRadius),
-          border: Border.all(color: selected ? kPurple.withOpacity(.35) : Colors.transparent),
+          border: Border.all(color: selected ? kPurple.withValues(alpha: .35) : Colors.transparent),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 19, color: selected ? kPurpleLight : kMuted),
@@ -537,8 +537,8 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
     decoration: BoxDecoration(
       color: kPanel,
       borderRadius: BorderRadius.circular(kRadius),
-      border: Border.all(color: Colors.white.withOpacity(.065)),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 18, offset: const Offset(0, 7))],
+      border: Border.all(color: Colors.white.withValues(alpha: .065)),
+      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 18, offset: const Offset(0, 7))],
     ),
     child: child,
   );
@@ -558,8 +558,8 @@ class _SqileHomeState extends State<SqileHome> with TickerProviderStateMixin {
     prefixIcon: Icon(icon, color: kPurpleLight, size: 18),
     filled: true, fillColor: kBg,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withOpacity(.08))),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withOpacity(.08))),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withValues(alpha: .08))),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withValues(alpha: .08))),
     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: const BorderSide(color: kPurple)),
   );
 }
@@ -611,7 +611,7 @@ class _SqlInjectionPageState extends State<SqlInjectionPage> {
         const Text('Test case library', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 9),
         DropdownButtonFormField<String>(
-          value: _selected,
+          initialValue: _selected,
           dropdownColor: kPanel2,
           decoration: _decoration('Choose a test case'),
           items: _checks.keys.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)))).toList(),
@@ -710,10 +710,10 @@ Widget _toolHeading(IconData icon, String title, String subtitle) => Container(
   decoration: BoxDecoration(
     borderRadius: BorderRadius.circular(kRadius),
     gradient: const LinearGradient(colors: [Color(0xFF3B1A60), kPanel]),
-    border: Border.all(color: kPurple.withOpacity(.25)),
+    border: Border.all(color: kPurple.withValues(alpha: .25)),
   ),
   child: Row(children: [
-    Container(width: 46, height: 46, decoration: BoxDecoration(color: kPurple.withOpacity(.18), borderRadius: BorderRadius.circular(kRadius)),
+    Container(width: 46, height: 46, decoration: BoxDecoration(color: kPurple.withValues(alpha: .18), borderRadius: BorderRadius.circular(kRadius)),
       child: Icon(icon, color: kPurpleLight, size: 23)),
     const SizedBox(width: 12),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -727,7 +727,7 @@ Widget _toolHeading(IconData icon, String title, String subtitle) => Container(
 Widget _panel({required Widget child}) => Container(
   padding: const EdgeInsets.all(14),
   decoration: BoxDecoration(color: kPanel, borderRadius: BorderRadius.circular(kRadius),
-    border: Border.all(color: Colors.white.withOpacity(.065))),
+    border: Border.all(color: Colors.white.withValues(alpha: .065))),
   child: child,
 );
 
@@ -735,8 +735,8 @@ InputDecoration _decoration(String hint) => InputDecoration(
   hintText: hint, hintStyle: const TextStyle(color: kMuted, fontSize: 11),
   filled: true, fillColor: kBg,
   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-  border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withOpacity(.08))),
-  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withOpacity(.08))),
+  border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withValues(alpha: .08))),
+  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: BorderSide(color: Colors.white.withValues(alpha: .08))),
   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius), borderSide: const BorderSide(color: kPurple)),
 );
 
@@ -754,7 +754,7 @@ Widget _resultBox(String text) => Container(
   width: double.infinity,
   padding: const EdgeInsets.all(12),
   decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(kRadius),
-    border: Border.all(color: kPurple.withOpacity(.18))),
+    border: Border.all(color: kPurple.withValues(alpha: .18))),
   child: SelectableText(text, style: const TextStyle(fontSize: 11, color: Color(0xFFD4C9E2), height: 1.5)),
 );
 
