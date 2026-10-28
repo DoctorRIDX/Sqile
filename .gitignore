@@ -1,6 +1,4 @@
 .dart_tool/
-.packages
-.pub/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -9,4 +7,3 @@ build/
 .vscode/
 android/.gradle/
 android/local.properties
-*.iml
