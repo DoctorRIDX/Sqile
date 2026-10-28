@@ -1,34 +1,55 @@
 name: Build Sqile APK
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - name: Generate Android scaffold if absent
+
+      - name: Generate Android scaffold
         run: |
-          if [ ! -f android/gradlew ]; then flutter create --platforms=android --org com.sqile .; fi
-      - name: Install dependencies and icon
+          if [ ! -f android/gradlew ]; then
+            flutter create --platforms=android --org com.sqile .
+          fi
+
+      - name: Configure Android SDK
         run: |
-          flutter pub get
-          dart run flutter_launcher_icons
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
+          elif [ -f android/app/build.gradle ]; then
+            sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 36/' android/app/build.gradle
+          else
+            echo "Gradle app file not found"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Analyze
         run: flutter analyze
+
       - name: Build APK
         run: flutter build apk --release
+
       - uses: actions/upload-artifact@v4
         with:
           name: Sqile-APK
