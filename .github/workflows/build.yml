@@ -1,0 +1,53 @@
+
+name: Build Sqile APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Check Flutter project
+        run: |
+          test -f pubspec.yaml
+          test -f lib/main.dart
+          flutter pub get
+
+      - name: Generate Android project if missing
+        run: |
+          if [ ! -f android/gradlew ]; then
+            flutter create --platforms=android --org com.sqile .
+          fi
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sqile-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
