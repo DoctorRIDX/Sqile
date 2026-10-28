@@ -1,4 +1,4 @@
-# Sqile 2.0
+# Sqile
 Flutter security dashboard starter: welcome/privacy notice, solid dark-purple UI, circular logo, Wi-Fi IP summary, APK permission inspection, reports and GitHub Actions.
 
 ## Build
