@@ -1,36 +1,23 @@
-
 name: sqile
-description: Sqile security analysis application.
-publish_to: 'none'
-version: 1.0.0+1
-
+description: Sqile Protax web testing toolkit.
+publish_to: none
+version: 3.0.0+3
 environment:
-  sdk: '>=3.5.0 <4.0.0'
-
+  sdk: '>=3.3.0 <4.0.0'
 dependencies:
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.8
-  http: ^1.2.2
   webview_flutter: ^4.10.0
-  file_picker: ^10.3.3
-  shared_preferences: ^2.3.2
-  network_info_plus: ^6.1.1
-
+  shared_preferences: ^2.3.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   flutter_lints: ^5.0.0
-  flutter_launcher_icons: ^0.14.2
-
+  flutter_launcher_icons: ^0.14.3
 flutter:
   uses-material-design: true
-
   assets:
     - assets/logo.png
-
 flutter_launcher_icons:
   android: true
   ios: false

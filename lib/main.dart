@@ -1,624 +1,98 @@
-
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:network_info_plus/network_info_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:http/http.dart' as http;
 
-const purple = Color(0xFF9B6DFF);
-const background = Color(0xFF100D18);
-const surface = Color(0xFF1B1626);
+const bg = Color(0xFF0B0A0F);
+const panel = Color(0xFF17151D);
+const panel2 = Color(0xFF211D2A);
+const purple = Color(0xFF7652B5);
+const purpleLight = Color(0xFFB9A0E8);
+const muted = Color(0xFFAAA5B5);
+const line = Color(0xFF332D3D);
 
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SqileApp());
+void main() => runApp(const ProtaxApp());
+
+class ProtaxApp extends StatelessWidget {
+  const ProtaxApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'Sqile Protax', debugShowCheckedModeBanner: false,
+    theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: bg,
+      colorScheme: const ColorScheme.dark(primary: purpleLight, surface: panel),
+      useMaterial3: true, appBarTheme: const AppBarTheme(backgroundColor: bg, foregroundColor: Colors.white),
+      inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: panel,
+        hintStyle: const TextStyle(color: muted), contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: line)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: line)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: purpleLight)))),
+    home: const PrivacyGate());
 }
 
-class SqileApp extends StatelessWidget {
-  const SqileApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sqile',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: background,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: purple,
-          brightness: Brightness.dark,
-        ),
-        cardTheme: const CardThemeData(
-          color: surface,
-          elevation: 0,
-          margin: EdgeInsets.zero,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: background,
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-      home: const WelcomePage(),
-    );
+class PrivacyGate extends StatefulWidget { const PrivacyGate({super.key}); @override State<PrivacyGate> createState() => _PrivacyGateState(); }
+class _PrivacyGateState extends State<PrivacyGate> {
+  bool? accepted;
+  @override void initState() { super.initState(); SharedPreferences.getInstance().then((p) { if (mounted) setState(() => accepted = p.getBool('protax_privacy') ?? false); }); }
+  @override Widget build(BuildContext context) {
+    if (accepted == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (accepted!) return const ProtaxHome();
+    return Scaffold(body: SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Spacer(), Center(child: ClipOval(child: Image.asset('assets/logo.png', width: 88, height: 88, fit: BoxFit.cover))),
+      const SizedBox(height: 26), const Text('Privacy Policy', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800)), const SizedBox(height: 12),
+      const Text('Sqile Protax memuat situs yang Anda masukkan melalui WebView. URL dan data yang Anda kirim ke situs diproses oleh situs tujuan. Aplikasi tidak memiliki server akun dan tidak mengirim riwayat browsing ke server Sqile.', style: TextStyle(color: muted, height: 1.55)),
+      const SizedBox(height: 12), const Text('Gunakan hanya pada situs yang Anda miliki atau diizinkan untuk diuji. Situs dapat mengumpulkan data sesuai kebijakan privasinya. Fitur encode/decode bekerja secara lokal di perangkat.', style: TextStyle(color: muted, height: 1.55)),
+      const Spacer(), SizedBox(width: double.infinity, child: FilledButton(onPressed: () async { final p = await SharedPreferences.getInstance(); await p.setBool('protax_privacy', true); if (mounted) setState(() => accepted = true); }, child: const Text('Setuju & Lanjutkan'))),
+    ]))));
   }
 }
 
-class WelcomePage extends StatefulWidget {
-  const WelcomePage({super.key});
+class ProtaxHome extends StatefulWidget { const ProtaxHome({super.key}); @override State<ProtaxHome> createState() => _ProtaxHomeState(); }
+class _ProtaxHomeState extends State<ProtaxHome> {
+  final urlInput = TextEditingController();
+  final dataInput = TextEditingController();
+  late final WebViewController web;
+  bool loading = false, loaded = false;
+  int progress = 0;
+  String currentUrl = '';
+  String status = 'READY';
 
-  @override
-  State<WelcomePage> createState() => _WelcomePageState();
-}
-
-class _WelcomePageState extends State<WelcomePage> {
-  bool accepted = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: const BoxDecoration(
-                    color: surface,
-                    shape: BoxShape.circle,
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.shield_outlined,
-                      color: purple,
-                      size: 60,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Welcome to Sqile',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Security tools for web analysis and APK permission review.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Privacy notice',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'APK checks are preliminary permission reviews, '
-                          'not a guarantee that an app is safe. Web requests '
-                          'may contact external websites. Only scan files '
-                          'you are authorized to inspect.',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                CheckboxListTile(
-                  value: accepted,
-                  onChanged: (value) {
-                    setState(() => accepted = value ?? false);
-                  },
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('I have read the privacy notice'),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: accepted
-                        ? () async {
-                            final prefs =
-                                await SharedPreferences.getInstance();
-                            await prefs.setBool('welcomeAccepted', true);
-                            if (!context.mounted) return;
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => const SqileHome(),
-                              ),
-                            );
-                          }
-                        : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: purple,
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: const Text('Continue'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SqileHome extends StatefulWidget {
-  const SqileHome({super.key});
-
-  @override
-  State<SqileHome> createState() => _SqileHomeState();
-}
-
-class _SqileHomeState extends State<SqileHome> {
-  int selectedIndex = 0;
-  String ipAddress = 'Unavailable';
-
-  late final WebViewController webController;
-  final TextEditingController urlController = TextEditingController(
-    text: 'https://example.com',
-  );
-
-  @override
-  void initState() {
+  @override void initState() {
     super.initState();
-    loadIp();
-
-    webController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.disabled)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (request) {
-            final uri = Uri.tryParse(request.url);
-            if (uri == null ||
-                (uri.scheme != 'https' && uri.scheme != 'http')) {
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse('https://example.com'));
+    web = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(bg)
+      ..setNavigationDelegate(NavigationDelegate(
+        onProgress: (p) { if (mounted) setState(() { progress = p; loading = p < 100; }); },
+        onPageStarted: (url) { if (mounted) setState(() { loading = true; loaded = false; status = 'LOADING'; currentUrl = url; urlInput.text = url; }); },
+        onPageFinished: (url) { if (mounted) setState(() { loading = false; loaded = true; progress = 100; status = 'LOADED'; currentUrl = url; urlInput.text = url; }); },
+        onWebResourceError: (error) { if (error.isForMainFrame == true && mounted) setState(() { loading = false; status = 'ERROR'; }); },
+        onUrlChange: (change) { if (change.url != null && mounted) setState(() { currentUrl = change.url!; }); },
+      ));
   }
-
-  Future<void> loadIp() async {
-    try {
-      final info = NetworkInfo();
-      final value = await info.getWifiIP();
-      if (!mounted) return;
-      setState(() => ipAddress = value ?? 'Unavailable');
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => ipAddress = 'Unavailable');
-    }
+  @override void dispose() { urlInput.dispose(); dataInput.dispose(); super.dispose(); }
+  String normalizeUrl(String raw) { var value = raw.trim(); if (value.isEmpty) throw const FormatException('URL belum diisi'); if (!value.contains('://')) value = 'https://$value'; final uri = Uri.parse(value); if (!['http', 'https'].contains(uri.scheme) || uri.host.isEmpty) throw const FormatException('Masukkan URL HTTP atau HTTPS yang valid'); return uri.toString(); }
+  Future<void> runUrl() async { try { final url = normalizeUrl(urlInput.text); FocusScope.of(context).unfocus(); setState(() { loading = true; loaded = false; status = 'LOADING'; progress = 0; }); await web.loadRequest(Uri.parse(url)); } catch (e) { setState(() => status = 'INVALID URL'); _message(e.toString().replaceFirst('FormatException: ', '')); } }
+  void _message(String text) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), behavior: SnackBarBehavior.floating)); }
+  Future<void> openParams() async {
+    String initial = urlInput.text.trim();
+    if (initial.isEmpty) { _message('Masukkan URL terlebih dahulu'); return; }
+    try { final uri = Uri.parse(normalizeUrl(initial)); final key = TextEditingController(text: (uri.queryParameters.keys.isEmpty ? '' : uri.queryParameters.keys.first)); final value = TextEditingController(text: (uri.queryParameters.values.isEmpty ? '' : uri.queryParameters.values.first));
+      await showModalBottomSheet<void>(context: context, isScrollControlled: true, backgroundColor: panel, builder: (ctx) => Padding(padding: EdgeInsets.fromLTRB(18, 20, 18, MediaQuery.of(ctx).viewInsets.bottom + 20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('URL Parameters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)), const SizedBox(height: 14), TextField(controller: key, decoration: const InputDecoration(labelText: 'Parameter name', hintText: 'id')), const SizedBox(height: 10), TextField(controller: value, decoration: const InputDecoration(labelText: 'Value', hintText: '123')), const SizedBox(height: 14), SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final q = Map<String, String>.from(uri.queryParameters); if (key.text.trim().isNotEmpty) q[key.text.trim()] = value.text; final updated = uri.replace(queryParameters: q.isEmpty ? null : q).toString(); urlInput.text = updated; Navigator.pop(ctx); }, child: const Text('Apply to URL')))])));
+    } catch (_) { _message('URL tidak valid'); }
   }
-
-  @override
-  void dispose() {
-    urlController.dispose();
-    super.dispose();
+  Future<void> openCodec(bool encode) async {
+    dataInput.clear();
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true, backgroundColor: panel, builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => Padding(padding: EdgeInsets.fromLTRB(18, 20, 18, MediaQuery.of(ctx).viewInsets.bottom + 20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(encode ? 'URL Encode' : 'URL Decode', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)), const SizedBox(height: 14), TextField(controller: dataInput, minLines: 3, maxLines: 5, decoration: const InputDecoration(hintText: 'Enter text or encoded data')), const SizedBox(height: 12), Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () { try { dataInput.text = encode ? Uri.encodeComponent(dataInput.text) : Uri.decodeComponent(dataInput.text); refresh(() {}); } catch (_) { _message('Data tidak dapat diproses'); } }, icon: Icon(encode ? Icons.lock_outline : Icons.lock_open_outlined), label: Text(encode ? 'Encode' : 'Decode'))), const SizedBox(width: 10), IconButton(onPressed: () => Clipboard.setData(ClipboardData(text: dataInput.text)).then((_) => _message('Disalin')), icon: const Icon(Icons.copy))])]))));
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = <Widget>[
-      dashboard(),
-      webPage(),
-      const ApkScannerPage(),
-      const InfoPage(
-        title: 'Ad Blocker',
-        icon: Icons.block,
-        description:
-            'Manage browser content-blocking options. This page does not '
-            'currently block ads system-wide.',
-      ),
-      const InfoPage(
-        title: 'Virus Manager',
-        icon: Icons.shield_outlined,
-        description:
-            'Review APK permissions with the scanner. Sqile is not a '
-            'full antivirus and does not continuously monitor your device.',
-      ),
-      const InfoPage(
-        title: 'Reports',
-        icon: Icons.assessment_outlined,
-        description:
-            'Reports will appear here when scan history is implemented.',
-      ),
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(
-                color: surface,
-                shape: BoxShape.circle,
-              ),
-              child: Image.asset(
-                'assets/logo.png',
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.shield, color: purple),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Sqile',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: KeyedSubtree(
-            key: ValueKey(selectedIndex),
-            child: pages[selectedIndex],
-          ),
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: surface,
-        indicatorColor: purple.withValues(alpha: 0.2),
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (value) {
-          setState(() => selectedIndex = value);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.language),
-            label: 'Web',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.android),
-            label: 'APK Scan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            label: 'Tools',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shield_outlined),
-            label: 'Virus',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assessment_outlined),
-            label: 'Reports',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget dashboard() {
-    return ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        const Text(
-          'Security Dashboard',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Monitor and review your security tasks.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        const SizedBox(height: 18),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                const Icon(Icons.wifi, color: purple, size: 32),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Wi-Fi IP address'),
-                      const SizedBox(height: 4),
-                      Text(
-                        ipAddress,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: loadIp,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        toolCard(
-          'WebView',
-          'Browse and inspect websites',
-          Icons.language,
-          () => setState(() => selectedIndex = 1),
-        ),
-        toolCard(
-          'APK Permission Scanner',
-          'Review permissions in an APK file',
-          Icons.android,
-          () => setState(() => selectedIndex = 2),
-        ),
-        toolCard(
-          'Ad Blocker',
-          'View content-blocking guidance',
-          Icons.block,
-          () => setState(() => selectedIndex = 3),
-        ),
-        toolCard(
-          'Virus Manager',
-          'Review available security tools',
-          Icons.shield_outlined,
-          () => setState(() => selectedIndex = 4),
-        ),
-        toolCard(
-          'Reports',
-          'View scan report information',
-          Icons.assessment_outlined,
-          () => setState(() => selectedIndex = 5),
-        ),
-      ],
-    );
-  }
-
-  Widget toolCard(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: purple.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Icon(icon, color: purple),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget webPage() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: urlController,
-                  keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(
-                    hintText: 'https://example.com',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: () {
-                  var value = urlController.text.trim();
-                  if (!value.startsWith('https://') &&
-                      !value.startsWith('http://')) {
-                    value = 'https://$value';
-                  }
-                  final uri = Uri.tryParse(value);
-                  if (uri != null &&
-                      (uri.scheme == 'https' || uri.scheme == 'http') &&
-                      uri.host.isNotEmpty) {
-                    webController.loadRequest(uri);
-                  }
-                },
-                icon: const Icon(Icons.arrow_forward),
-              ),
-            ],
-          ),
-        ),
-        Expanded(child: WebViewWidget(controller: webController)),
-      ],
-    );
-  }
+  Widget action(String label, IconData icon, VoidCallback onTap, {bool primary = false}) => SizedBox(height: 42, child: primary ? FilledButton.icon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label), style: FilledButton.styleFrom(backgroundColor: purple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))) : OutlinedButton.icon(onPressed: onTap, icon: Icon(icon, size: 17), label: Text(label), style: OutlinedButton.styleFrom(foregroundColor: purpleLight, side: const BorderSide(color: line), padding: const EdgeInsets.symmetric(horizontal: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))));
+  @override Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(child: Column(children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 13, 16, 10), child: Row(children: [ClipOval(child: Image.asset('assets/logo.png', width: 43, height: 43, fit: BoxFit.cover)), const SizedBox(width: 12), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Sqile Protax', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -.6)), SizedBox(height: 1), Text('By Farid - DoctorRIDX', style: TextStyle(color: muted, fontSize: 12))])), IconButton(tooltip: 'Privacy Policy', onPressed: () => showDialog(context: context, builder: (_) => const AlertDialog(title: Text('Privacy Policy'), content: Text('Situs dibuka di WebView. Data yang dikirim melalui situs diterima oleh situs tujuan. Encode/decode berjalan lokal. Sqile tidak mengunggah riwayat browsing ke server Sqile.'), actions: [CloseButton()])), icon: const Icon(Icons.privacy_tip_outlined, color: purpleLight))])),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Row(children: [Expanded(child: TextField(controller: urlInput, keyboardType: TextInputType.url, textInputAction: TextInputAction.go, onSubmitted: (_) => runUrl(), decoration: const InputDecoration(hintText: 'https://example.com', prefixIcon: Icon(Icons.link, color: purpleLight), isDense: true))), const SizedBox(width: 8), SizedBox(height: 49, child: FilledButton(onPressed: runUrl, style: FilledButton.styleFrom(backgroundColor: purple, padding: const EdgeInsets.symmetric(horizontal: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Icon(Icons.play_arrow_rounded))) ])),
+      SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.fromLTRB(14, 9, 14, 10), child: Row(children: [action('Stop', Icons.stop_rounded, () async { await web.runJavaScript('window.stop()').catchError((_) {}); await web.stopLoading(); if (mounted) setState(() { loading = false; status = 'STOPPED'; }); }), const SizedBox(width: 7), action('Reload', Icons.refresh_rounded, () async { if (currentUrl.isNotEmpty) { setState(() { loading = true; status = 'LOADING'; }); await web.reload(); } }), const SizedBox(width: 7), action('Params', Icons.tune_rounded, openParams), const SizedBox(width: 7), action('Encode', Icons.lock_outline, () => openCodec(true)), const SizedBox(width: 7), action('Decode', Icons.lock_open_outlined, () => openCodec(false))])),
+      Container(height: 1, color: line),
+      Expanded(child: Stack(children: [WebViewWidget(controller: web), if (!loaded) Positioned.fill(child: IgnorePointer(child: Container(color: bg, child: Center(child: ClipOval(child: Image.asset('assets/logo.png', width: 76, height: 76, fit: BoxFit.cover)))))), if (loading) Positioned(top: 0, left: 0, right: 0, child: LinearProgressIndicator(value: progress == 0 || progress >= 100 ? null : progress / 100, minHeight: 2, backgroundColor: panel2, color: purpleLight))])),
+      Container(color: panel, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), child: Row(children: [Container(width: 7, height: 7, decoration: BoxDecoration(color: status == 'ERROR' ? Colors.redAccent : status == 'LOADED' ? const Color(0xFF7BC8A4) : purpleLight, shape: BoxShape.circle)), const SizedBox(width: 8), Expanded(child: Text(status, style: const TextStyle(fontSize: 11, color: muted, fontWeight: FontWeight.w700, letterSpacing: .6), maxLines: 1, overflow: TextOverflow.ellipsis)), if (currentUrl.isNotEmpty) Flexible(child: Text(Uri.tryParse(currentUrl)?.host ?? '', style: const TextStyle(color: muted, fontSize: 11), overflow: TextOverflow.ellipsis))]))
+    ])),
+  );
 }
-
-class ApkScannerPage extends StatefulWidget {
-  const ApkScannerPage({super.key});
-
-  @override
-  State<ApkScannerPage> createState() => _ApkScannerPageState();
-}
-
-class _ApkScannerPageState extends State<ApkScannerPage> {
-  String result = 'Choose an APK file to review its permissions.';
-  bool scanning = false;
-
-  Future<void> scanApk() async {
-    final file = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['apk'],
-      withData: false,
-    );
-
-    if (file == null || file.files.single.path == null) return;
-
-    setState(() {
-      scanning = true;
-      result = 'Reviewing APK metadata...';
-    });
-
-    try {
-      final response = await http.get(
-        Uri.parse('https://www.google.com/generate_204'),
-      ).timeout(const Duration(seconds: 5));
-
-      final networkAvailable = response.statusCode == 204;
-      final name = file.files.single.name;
-      setState(() {
-        result = 'File: $name\n'
-            'Network check: ${networkAvailable ? "Available" : "Unknown"}\n\n'
-            'Sqile has not yet performed a malware signature scan. '
-            'Review the app source and permissions before installing. '
-            'A filename or network check cannot establish that an APK is safe.';
-      });
-    } catch (_) {
-      setState(() {
-        result = 'File: ${file.files.single.name}\n\n'
-            'Network check unavailable. This is not a malware verdict. '
-            'A full permission and malware analysis engine is not configured.';
-      });
-    } finally {
-      if (mounted) setState(() => scanning = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'APK Scanner',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Select an APK to review. This version does not claim to detect '
-            'all malware or automatically block installation.',
-            style: TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: scanning ? null : scanApk,
-              icon: const Icon(Icons.file_open),
-              label: Text(scanning ? 'Checking...' : 'Choose APK'),
-              style: FilledButton.styleFrom(
-                backgroundColor: purple,
-                minimumSize: const Size.fromHeight(52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: Card(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: SelectableText(result),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class InfoPage extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final String description;
-
-  const InfoPage({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: purple, size: 42),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                description,
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
