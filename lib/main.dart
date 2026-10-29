@@ -287,7 +287,7 @@ class _ProtaxHomeState extends State<ProtaxHome> {
   }
 
   Future<void> _runApply(Map<String, dynamic> e) =>
-      web.runJavaScript(_applyJs + '(' + jsonEncode(e) + ');');
+      web.runJavaScript('$_applyJs(${jsonEncode(e)});');
 
   Future<void> _applyEdits(String url) async {
     final host = Uri.tryParse(url)?.host ?? '';
@@ -304,7 +304,7 @@ class _ProtaxHomeState extends State<ProtaxHome> {
   Future<void> startPick(String mode) async {
     if (!loaded) { _message('Buka halaman terlebih dahulu'); return; }
     try {
-      await web.runJavaScript(_pickJs + '("$mode");');
+      await web.runJavaScript('$_pickJs("$mode");');
       _message('Tap elemen di halaman');
     } catch (_) { _message('Gagal mengaktifkan mode pilih'); }
   }
